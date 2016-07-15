@@ -1,0 +1,11 @@
+export(RM.w, PC.w, tab.weight, EWaldtest, ICC.fun, RT.thres, prob.assign,equating.fun)
+
+
+import(psychotools, Hmisc)
+
+
+
+importFrom("grDevices", "dev.off", "pdf")
+importFrom("graphics", "abline", "legend", "lines", "points", "text")
+importFrom("stats", "cor", "optim", "pnorm", "sd")
+importFrom("utils", "write.table")
