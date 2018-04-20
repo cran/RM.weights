@@ -1,12 +1,21 @@
 equating.fun = function(rr1, st=NULL, tol = .35, spec.com1 = 1:8, 
-                           spec.com2=1:8, thres = c(-0.25,  1.83),maxuniq=3, plot=F,
-                           iterative=T, excl.prior1=NULL, excl.prior2=NULL){
+                           spec.com2=1:8, thres = NULL, maxuniq=3, write.file=FALSE, 
+                            plot=FALSE, iterative=TRUE, excl.prior1=NULL, excl.prior2=NULL, wt.spec=NULL){
   # spec.com1 is the set of a priori common items for the country
   # spec.com2 is the set of a priori common items for the standard
   tol2=tol
   b1=rr1$b
   se1=rr1$se.b
+  # If null, the standard is set as the VoH 2014-2016 global standard
+  if(is.null(st)) st = c(-1.2230564, -0.8471210, -1.1056616,  0.3509848, -0.3117999,  0.5065051,  0.7546138, 1.8755353)
   b.tot = st
+  # Set thresholds as 5th and 8th item on the global standard if not specified
+  if(is.null(thres)) {
+    thres=b.tot[c(5,8)]
+    truetresh=T
+  } else{
+    truetresh=F
+  }
   # We start from the assumption that all items (specified in spec.comm1) 
   # are common
   common = rep(F,length(b1))
@@ -75,6 +84,7 @@ if(!iterative) {
   }
   prevs.rs = matrix(NA, length(a), length(newthres))
   wt=rr1$wt
+  if(!is.null(wt.spec)) wt = wt.spec
   XX=rr1$XX
   rv=rowSums(XX)
   k=ncol(XX)
@@ -87,6 +97,13 @@ if(!iterative) {
   prevs = colSums(prevs.rs)
   x.var=st
   y.var=shift+rr1$b*scale
+  probs.rs=prevs.rs
+  for (i in 1:length(newthres)) {
+    probs.rs[,i] =  (1-pnorm(newthres[i], a, se.a))
+  }
+  probs.rs[1,]=0
+  row.names(probs.rs)=as.numeric(names(table(rv)))
+  if(truetresh) colnames(probs.rs) = c("FI_mod+", "FI_sev")
   if(plot){
     pdf("Equating_plot.pdf")
     range=range(x.var[spec.com2],y.var[spec.com1])
@@ -101,8 +118,57 @@ if(!iterative) {
   }
   cor.comm.items=cor(x.var[common2],y.var[common])
   names(common)=colnames(rr1$XX)
-  rownames(prevs.rs)=0:ncol(rr1$XX)
+  # rownames(prevs.rs)=0:ncol(rr1$XX)
+# Name thresholds and prevs if thresholds are official
+if(truetresh){
+  names(prevs)=c("FI_mod+", "FI_sev")
+  names(newthres)=c("FI_mod+", "FI_sev")
+}
+# Write output file
+  if(write.file){
+    country=rr1$country
+    print.title = paste(country, "equating output from R processing")
+    write.table(print.title, paste("Equating_Output", country,".csv", sep=""), append = F, 
+                sep = ",", eol = "\n", na = "NA", dec = ".", col.names=F, row.names=F)
+    # Common items
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("Common items", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    comm.mat=common
+    comm.mat[!common]="Unique"
+    comm.mat[common]="Common"
+    write.table(comm.mat, paste("Equating_Output", country,".csv", sep=""), append = T, 
+                sep = ",", eol = "\n", na = "NA", dec = ".", col.names = F)
+    # Correlation between common items
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("Correlation between common items", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    write.table(cor.comm.items, paste("Equating_Output", country,".csv", sep=""), append = T, 
+                sep = ",", eol = "\n", na = "NA", dec = ".", col.names = F, row.names = F)
+    # Adjusted thresholds
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("Adjusted thresholds on country metric", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    adj.thres=newthres
+    write.table(adj.thres, paste("Equating_Output", country,".csv", sep=""), append = T, 
+                sep = ",", eol = "\n", na = "NA", dec = ".", col.names = F)
+    # Prevalence rates at adjusted thresholds
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("Prevalence rates at adjusted thresholds (%)", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    write.table(round(prevs*100,2), paste("Equating_Output", country,".csv", sep=""), append = T, 
+                sep = ",", eol = "\n", na = "NA", dec = ".", col.names = F)
+    # Probability of being beyond thresholds at each raw score
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("Probability at adjusted thresholds for each raw score", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    cat("\n", file = paste("Equating_Output", country,".csv", sep=""), append = TRUE)
+    write.table(probs.rs, paste("Equating_Output", country,".csv", sep=""), append = T, 
+                sep = ",", eol = "\n", na = "NA", dec = ".", col.names = F)
+  }
+  common.print=common
+  common.print[common.print==TRUE] = "Common"
+  common.print[common.print==FALSE] = "Unique"
   return(list("scale" = scale, "shift" = shift, 
-              "common"=common, prevs = prevs, prevs.rs=prevs.rs,
-              cor.comm.items=cor.comm.items))  
+              "common"=common.print, prevs = prevs, probs.rs=probs.rs,
+              cor.comm.items=cor.comm.items, adj.thres=newthres, standard=st))  
 }

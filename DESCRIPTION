@@ -1,15 +1,14 @@
 Package: RM.weights
-Type: Package
+Version: 2.0
 Title: Weighted Rasch Modeling and Extensions using Conditional Maximum
         Likelihood
-Version: 1.0
-Date: 2016-07-14
-Author: Carlo Cafiero, Mark Nord, Sara Viviani
-Maintainer: Sara Viviani <sara.viviani@fao.org>
-Description: Rasch model and extensions for survey data, using Conditional Maximum likelihood (CML). 
-License: GPL (>= 3.0.0)
+Author: Carlo Cafiero, Sara Viviani, Mark Nord 
+Maintainer: Sara Viviani <sara.viviani@yahoo.it>
 Depends: R (>= 3.0.0), psychotools, Hmisc
-Packaged: 2016-07-15 08:30:04 UTC; viviani
+Description: Rasch model and extensions for survey data, using Conditional Maximum likelihood (CML). Carlo Cafiero, Sara Viviani, Mark Nord (2018) <doi:10.1016/j.measurement.2017.10.065>.
+License: GPL (>= 3.0.0)
+Encoding: UTF-8
 NeedsCompilation: no
+Packaged: 2018-04-19 13:56:37 UTC; saraviviani
 Repository: CRAN
-Date/Publication: 2016-07-15 14:07:10
+Date/Publication: 2018-04-20 08:47:19 UTC

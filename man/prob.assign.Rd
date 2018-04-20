@@ -44,7 +44,6 @@ The \code{prob.assign} function can be used in two ways: providing the \code{rwt
   \code{\link{RM.w}}
 }
 \examples{
-\dontrun{
 data(data.FAO_country1)
 # Questionnaire data and weights
 XX.country1 = data.FAO_country1[,1:8]
@@ -80,7 +79,4 @@ pp.country1.d[[1]]*100
 # Probability of being beyond -0.25 on the latent trait in country 1 
 # using lower assumption on the extreme raw score parameter 8
 pp.country1.d[[2]]*100
-
-}
-
 }

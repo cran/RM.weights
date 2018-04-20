@@ -6,7 +6,7 @@ This function estimates item and raw score parameters of a partial credit Rasch 
 }
 \usage{
 PC.w(XX, wt=NULL, extr=NULL, maxiter=100,minconv=.00001,country=NULL,
-write.file=F, recode = 0, write.iteration=F)
+write.file=FALSE, recode = 0, write.iteration=FALSE)
 }
 \arguments{
   \item{XX}{Input data matrix or data frame. Rows represent respondents, columns represent items. Dichotomous items are coded 0/1, polytomous items are coded 0/1/2 or 0/1/2/3; negative responses must be coded as 0s. Missing values must be coded as \code{NA}.}
@@ -53,7 +53,6 @@ As the parameters for the extreme raw scores (\code{0} and \code{k}), are undefi
 Vector \code{extr}  gives the option to include one assumption on the pseudo-raw-score on which raw score zero will be based and one assumption on the pseudo-raw-score on which raw score \code{k} will be based. The assumption for raw score zero can be a number between 0 and 1 (extremes excluded). The assumption for raw score \code{k} can be a number between \code{k-1} and \code{k} (extremes excluded).
 }
 \examples{
-\dontrun{
 data(data.FAO_country1)
 # Questionnaire data and weights
 XX.country1 = data.FAO_country1[,1:8]
@@ -61,8 +60,5 @@ XX.country1[,c(7,8)] = cbind(rbinom(nrow(XX.country1), 3, .5), rbinom(nrow(XX.co
 wt.country1 = data.FAO_country1$wt
 # Fit weighted partial credit model with aggregation of the two more severe categories
 rr.country1.pol2 = PC.w(XX.country1, wt.country1, recode = 1)
-# Write output file
-rr.country1.pol2 = PC.w(XX.country1, wt.country1, recode = 1, write.file=T)
-}
 }
 

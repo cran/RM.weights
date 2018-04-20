@@ -5,8 +5,8 @@
 This function computes item and raw score parameter estimates of a Rasch model for binary item responses by using weighted CML estimation. Input data should be a 0/1 matrix (1 = Yes). Residual correlation, fit statistics and corresponding standard errors, Rasch reliability and individual fit statistics are also reported.
 }
 \usage{
-RM.w(.data, .w = NULL, .d=NULL, country=NULL, se.control = T, 
-quantile.seq = NULL, write.file = F)
+RM.w(.data, .w = NULL, .d=NULL, country=NULL, se.control = TRUE, 
+quantile.seq = NULL, write.file = FALSE, max.it=100)
 }
 \arguments{
   \item{.data}{Input 0/1 data matrix or data frame; 
@@ -24,14 +24,37 @@ quantile.seq = NULL, write.file = F)
     individual fit statistic distributions. Default is \code{seq(0,1,0.01)}.}
       \item{write.file}{If \code{TRUE}, a CSV file with the main results will be saved 
       in the working directory.}
+      \item{max.it}{Maximum number of iterations item parameters' estimation.}
       }
 \value{
-# TBD #
   A list with the following elements: 
   \tabular{ll}{
-	\code{b1.rt} \tab R-T threshold for the first category. \cr
-	\code{b2.rt} \tab R-T threshold for the second category. \cr 
-	\code{b12.rt} \tab Vector of R-T thresholds for the first and second category. \cr 
+	\code{country} \tab Name of the country or the application. \cr
+	\code{b} \tab Item severity parameters. \cr 
+	\code{a} \tab Raw score severity parameters. \cr 
+\code{se.b} \tab Item severities' standard error. \cr 
+\code{se.a} \tab Raw score parameters' standard error. \cr
+\code{infit} \tab Items' infit statistics. \cr 
+\code{outfit} \tab Items' outfit statistics. \cr 
+\code{reliab} \tab Rasch reliability. \cr
+\code{reliab.fl} \tab Rasch reliability (equally weighted across raw scores). \cr
+\code{infit.person} \tab Respondents' infits. \cr
+\code{outfit.person} \tab Respondents' outfits. \cr
+\code{q.infit.theor} \tab Quintiles of theoretical person infits. \cr
+\code{q.infit} \tab Quintiles of person infits. \cr
+\code{q.outfit.theor} \tab Quintiles of theoretical person outfits. \cr
+\code{q.outfit} \tab Quintiles of person outfits. \cr
+\code{res.corr} \tab Residual correlation matrix. \cr
+\code{se.infit} \tab Standard errors of infits. \cr
+\code{mat.res} \tab Matrix of individual residuals for each item. \cr
+\code{d} \tab Pseudo raw scores for the calculation of extreme raw score parameters. \cr
+\code{XX} \tab Data matrix. \cr
+\code{wt} \tab Vector of post-stratification sampling weights. \cr
+\code{n.compl} \tab Number of complete, non-extreme cases. \cr
+\code{wt.rs} \tab Weighted (absolute) distribution of respondents across raw scores. \cr
+\code{wt.rs} \tab Weighted (relative) distribution of respondents across raw scores. \cr
+\code{converged} \tab Character indicating if the item estimation algorithm has reached convergence
+or the maximum number of iterations has been reached without convergence. \cr
 	}
 }
       
@@ -48,7 +71,6 @@ Vector \code{.d}  gives the option to include up to four alternative assumptions
 }
 }
 \examples{
-\dontrun{
 data(data.FAO_country1)
 # Questionnaire data and weights
 XX.country1 = data.FAO_country1[,1:8]
@@ -83,20 +105,9 @@ rr.country1$reliab
 # non-extreme raw score (more comparable across datasets)
 rr.country1$reliab.fl
 
-# Respondent infit distribution: observed and expected
-quantile.seq = c(0,.01,.02,.05,.10,.25,.50,.75,.90,.95,
-   .98,.99,1)
-q.infit = rr.country1$q.infit
-q.infit.theor  = rr.country1$q.infit.theor
-plot(quantile.seq, q.infit, type = "b", xlab = "Quantiles", 
-ylab = "Observed infit", ylim = c(0, 6))
-lines(quantile.seq, q.infit.theor, type = "b", col = 2)
-
 # Checking conditional independence: residual correlation matrix 
 rr.country1$res.cor
 
-# Save outputs to csv file with data name
-rr.country1 = RM.w(XX.country1, wt.country1, country = "country1", write.file = T)
-}}
+}
 
 

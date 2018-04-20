@@ -30,7 +30,6 @@ tab.weight(variab, wt, XX = NULL)
 
 \author{Sara Viviani \email{sara.viviani@fao.org}}
 \examples{
-\dontrun{
 data(data.FAO_country1)
 XX.country1 = data.FAO_country1[,1:8]
 wt.country1 = data.FAO_country1$wt
@@ -50,7 +49,6 @@ cbind("Abs.RS distrib." = fit.descr$RS.abs.w,
 # Weighted and unweighted percentage of Yes per item
 cbind("Weighted perc. of Yes" = fit.descr$Perc.Yes.w, 
       "Unweighted perc. of Yes" = fit.descr$Perc.Yes)
-}
 }
 
 

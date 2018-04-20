@@ -41,8 +41,8 @@
 ## write.iteration
 # If TRUE, an information csv file on the iteration process will be written in the working directory 
 
-PC.w=function(XX, wt=NULL, extr=NULL, maxiter=100,minconv=.00001,country=NULL,write.file=F,
-            recode = 0, write.iteration=F){
+PC.w=function(XX, wt=NULL, extr=NULL, maxiter=100,minconv=.00001,country=NULL,write.file=FALSE,
+            recode = 0, write.iteration=FALSE){
   fn_rdata_in=XX
   if(is.null(wt)) wt = rep(1, nrow(XX))
 
@@ -126,8 +126,8 @@ if(n.pol!=0){
     } 
   }
 } else 
-{cat("Data include only dichotomous variables. Use the RM.w() function instead.")
-break}
+{stop("Data include only dichotomous variables. Use the RM.w() function instead.")
+}
 
 # Re-calculate max v for each item and raw score max on recoded data
 i_max = apply(XX,2,function(x) max(x,na.rm=T))

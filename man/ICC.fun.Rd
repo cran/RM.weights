@@ -5,7 +5,7 @@
 Computation and plotting of item caracteristic curves (ICCs) under conditional maximum likelihood (CML).
 }
 \usage{
-ICC.fun(b, plot = F)
+ICC.fun(b, plot = FALSE)
 }
 \arguments{
   \item{b}{Item severity vector estimated under CML.}
@@ -22,18 +22,17 @@ ICC.fun(b, plot = F)
   \code{\link{RM.w}}
 }
 \examples{
-\dontrun{
 data(data.FAO_country2)
 # Questionnaire data and weights
 XX.country2 = data.FAO_country2[,1:8]
 wt.country2 = data.FAO_country2$wt
 # Fit weighted Rasch
 rr.country2 = RM.w(XX.country2, wt.country2)
+b=rr.country2$b
 # ICC values
 icc = ICC.fun(b)$icc
 # ICC plot
-icc = ICC.fun(b, plot = T)
-}
+icc = ICC.fun(b, plot = TRUE)
 }
 
 

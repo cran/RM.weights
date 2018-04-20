@@ -1,12 +1,15 @@
 RM.w <-
-function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
-                quantile.seq = NULL, write.file = F) {
+function(.data, .w = NULL, .d=NULL, country=NULL, se.control = TRUE,
+        quantile.seq = NULL, write.file = FALSE, max.it=100) {
   if(is.null(country)) country = "country"
   if(is.null(.w)) .w = rep(1, nrow(.data))
 	rv = rowSums(.data)
 	k = ncol(.data)
 	XX = .data
 	wt = .w
+	if(sum(wt)!=length(wt)) {
+	  wt1 = wt/sum(wt)*length(wt)
+	}
   if(is.null(.d)) .d = c(0.5,(k-1)+0.5)
   d = .d
   l.d = length(d)
@@ -42,8 +45,13 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
 		return(LL)
 	}
   # Estimation: item
-	opt.w <- optim(seq(-3,3,length.out=k), wle.fit, method = "BFGS", hessian = T)
-  b.w = opt.w$par
+	opt.w <- optim(seq(-3,3,length.out=k), wle.fit, method = "BFGS",
+	               control=list(maxit=max.it))
+	convergence=opt.w$convergence
+	if(convergence==1) convergence="Iteration limit reached without convergence." 
+	if(convergence==0) convergence="Converged!" 
+	if(convergence!="Converged!") cat("Warning: the estimation algorithm did not reached convergence.")
+	b.w = opt.w$par
   names(b.w) = colnames(XX)
 	p.i.b = colSums( P.i.b(b.w) )
 	se.b.w = sqrt(1/p.i.b)
@@ -255,7 +263,7 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
 		return(LL)
 	}
   # Estimation: person parameters
-	opt.a = optim(seq(-3,3,length.out=k-1),wle.a.fit,method="BFGS",hessian=T)
+	opt.a = optim(seq(-3,3,length.out=k-1),wle.a.fit,method="BFGS")
   # Extremes
   if(l.d == 2){
     opt.a.zeros = optim(c(-3), function(i) wle.a.fit.extr(i, extr=1), 
@@ -398,7 +406,7 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
 	}
 	E = P.E(b.w) 
 	V = P.E(b.w) * (1-P.E(b.w))
-	z = (XX2 - E )/sqrt(V) 
+	z = (XX2 - E )/sqrt(V)
 	outfit.w = apply(z^2 * wt2, 2, sum)/(sum(wt2))
 	infit.w = apply(V * z^2* wt2,2,sum)/ apply(V* wt2,2,sum)
   # Residuals
@@ -480,11 +488,6 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
   ii_predyesprop=ii_predyestot/totwt
   rri_outobs=rri_nyeswt/rr_totwt # Observed response proportion
   obs.prop = rri_outobs
-#   lev.rv2 = as.numeric(levels(as.factor(rv2)))
-#   pred.count.tot = sapply(lev.rv2, function(i) (P.E(b.w)[rv2==i,]*wt.rv2.tot[[i]]))
-#   pred.count = sapply(lev.rv2, function(i) apply(pred.count.tot[[i]], 2, sum))
-#   pred.prop = t(pred.count/wt.rv2)
-#   colnames(pred.prop) = colnames(obs.prop) = colnames(XX)
   wt.item.tot = sapply(1:k, function(i) sum(wt2[XX2[,i] == 1]))/sum(wt2)
   cov1.obs.wt = sapply(1:k, function(j)
     sapply(1:k, function(i) sum(wt2[XX2[,j] == 1 & XX2[,i] == 1])/sum(wt2))) 
@@ -510,6 +513,9 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
   # Individual fit
   outfit.person = apply(z^2, 1, mean)
   infit.person = apply(V * z^2,1,sum)/ apply(V,1,sum)
+  outfit.person2=infit.person2=c(matrix(NA, nrow(XX), 1))
+  outfit.person2[ml.select]=outfit.person
+  infit.person2[ml.select]=infit.person
   rri_pinrr = matrix(NA, nraw, nitem)
   for (rr in 1:nraw) {
     for(i in 1:nitem) {
@@ -545,170 +551,172 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
       (rri_pinrr[rr,i]*(1-rri_pinrr[rr,i]))^2*rr_totwt[rr]}}
   for (rr in 1:nraw) {
     for (i in 1:nitem) {i_sumpq[i]=
-                          i_sumpq[i]+rri_pinrr[rr,i]*(1-rri_pinrr[rr,i])*rr_totwt[rr]}}
+                            i_sumpq[i]+rri_pinrr[rr,i]*(1-rri_pinrr[rr,i])*rr_totwt[rr]}}
   i_seinfit=sqrt(i_sumpq-4*i_sumpqsq)/i_sumpq
   n.rv.tot = table(factor(rv, levels = 0:k))
   wt.rv.tot = sapply(1:(k+1), function(i) sum(wt[rv==i-1], na.rm = T))
-#   wt.rv.tot = sapply(as.numeric(names(n.rv.tot)), function(i) 
-#     sum(wt[rv==i], na.rm = T))
-  # Weighted N of yes on the complete non-extreme sample
-  wt.yes = sapply(1:k, function(i) sum(wt2[XX2[,i]==1], na.rm = T))
+  f_j = wt.rv.tot/sum(wt.rv.tot)
+  #   wt.rv.tot = sapply(as.numeric(names(n.rv.tot)), function(i) 
+  #     sum(wt[rv==i], na.rm = T))
   valid.resp = nrow(XX2)
-  valid.resp.w = sum(wt2)
-  wt.yes.perc = sapply(1:k, function(i) sum(wt2[XX2[,i]==1], na.rm = T)/sum(wt2)
-                       * 100)
-  # Weighted N of yes on total sample
-  wt.yes.tot = sapply(1:k, function(i) sum(wt[XX[,i]==1], na.rm = T))
-  wt.yes.perc.tot = sapply(1:k, function(i) sum(wt[XX[,i]==1], na.rm = T)/sum(wt)
-                       * 100)
-  # N of yes on the complete non-extreme sample
-  n.yes = apply(XX2,2,sum)
-  perc.yes = n.yes/nrow(XX2)*100
-  # N of yes on the total sample
-  n.yes.tot = apply(XX,2, function(i) sum(i, na.rm=T))
-  perc.yes.tot = n.yes.tot/nrow(XX)*100
-  #missing.resp = sum(is.na(XX))
-  missing.resp = sum(is.na(rowSums(XX)))
-  miss.item.mat = apply(XX, 2,is.na)
-  miss.item = apply(miss.item.mat, 2, sum)
-  miss.item.w = sapply(1:k, function(i) sum(wt[miss.item.mat[,i]]))
-  missing.resp.w = sum(wt[is.na(rowSums(XX))])
-  # Prepare data for missing analysis
-  #
-  ri_in_all=XX
-  rs = r_raw_all = rowSums(XX)
-  r_nvalid = rowSums(!is.na(XX))
-  ri_inz_all=as.matrix(ri_in_all)
-  ri_inz_all[is.na(ri_inz_all)]=-1
-  ncaseall=nrow(XX)
-  r_wt_all=wt
-  i_names=colnames(ri_in_all)
-  #
-  #calculate raw score and distribution by raw score for any valid and all valid
-  all.na = apply(XX,1,function(i) sum(is.na(i)))
-  # Any
-  rs2=rowSums(XX,na.rm=T)
-  w.anyv=wt[all.na!=ncol(XX)]
-  rr_wt_anyv = tab.weight(as.factor(rs2[all.na!=ncol(XX)]), w.anyv)$tab.ext.w
-  rr_ncase_anyv = table(rs2[all.na!=ncol(XX)])
-  totwt_anyv = sum(w.anyv)
-  perc_wt_anyv = round(totwt_anyv/nrow(XX)*100,1)
-  rr_pctwt_anyv = rr_wt_anyv*100/totwt_anyv
-  #All
-  w.allv=wt[all.na!=ncol(XX)]
-  rr_wt_allv = tab.weight(as.factor(rs[all.na!=ncol(XX)]), w.allv)$tab.ext.w
-  rr_ncase_allv=unname(table(rs[all.na!=ncol(XX)]))
-  totwt_allv=sum(rr_wt_allv)
-  rr_pctwt_allv=rr_wt_allv*100/totwt_allv
-  # Missing information
-  nitem = k
-  nvall=nitem+1
-  vall_value=rep(0,nvall) #
-  vall_value = 0:nitem
-  i_max = apply(XX,2,function(x) max(x,na.rm=T))
-  rawmax=sum(i_max)
-  ri_in_all=XX
-  nrawall=rawmax+1 #number of cases including 0
-  rrall_value=0:rawmax 
-  #calculate distribution of missing: 
-  # Distribution of valid responses = da 0 ad 8 quante sono i valori validi
-  tab.not.na = apply(XX, 1, function(i) sum(!is.na(i)))
-  vall_ncaseinv = sapply(0:nitem, function(i) sum(tab.not.na==i)) #number of cases by number of valid items
-  vall_wtcaseinv = sapply(0:nitem, function(i) sum(wt[tab.not.na==i])) #sum of weights of cases by number valid
+  if(write.file){
+    # Weighted N of yes on the complete non-extreme sample
+    wt.yes = sapply(1:k, function(i) sum(wt2[XX2[,i]==1], na.rm = T))
+    valid.resp.w = sum(wt2)
+    wt.yes.perc = sapply(1:k, function(i) sum(wt2[XX2[,i]==1], na.rm = T)/sum(wt2)
+                         * 100)
+    # Weighted N of yes on total sample
+    wt.yes.tot = sapply(1:k, function(i) sum(wt[XX[,i]==1], na.rm = T))
+    wt.yes.perc.tot = sapply(1:k, function(i) sum(wt[XX[,i]==1], na.rm = T)/sum(wt)
+                         * 100)
+    # N of yes on the complete non-extreme sample
+    n.yes = apply(XX2,2,sum)
+    perc.yes = n.yes/nrow(XX2)*100
+    # N of yes on the total sample
+    n.yes.tot = apply(XX,2, function(i) sum(i, na.rm=T))
+    perc.yes.tot = n.yes.tot/nrow(XX)*100
+    #missing.resp = sum(is.na(XX))
+    missing.resp = sum(is.na(rowSums(XX)))
+    miss.item.mat = apply(XX, 2,is.na)
+    miss.item = apply(miss.item.mat, 2, sum)
+    miss.item.w = sapply(1:k, function(i) sum(wt[miss.item.mat[,i]]))
+    missing.resp.w = sum(wt[is.na(rowSums(XX))])
+    # Prepare data for missing analysis (only needed when the output file is written)
+    #
+    ri_in_all=XX
+    rs = r_raw_all = rowSums(XX)
+    r_nvalid = rowSums(!is.na(XX))
+    ri_inz_all=as.matrix(ri_in_all)
+    ri_inz_all[is.na(ri_inz_all)]=-1
+    ncaseall=nrow(XX)
+    r_wt_all=wt
+    i_names=colnames(ri_in_all)
+    #
+    #calculate raw score and distribution by raw score for any valid and all valid
+    all.na = apply(XX,1,function(i) sum(is.na(i)))
+    # Any
+    rs2=rowSums(XX,na.rm=T)
+    w.anyv=wt[all.na!=ncol(XX)]
+    rr_wt_anyv = tab.weight(as.factor(rs2[all.na!=ncol(XX)]), w.anyv)$tab.ext.w
+    rr_ncase_anyv = table(rs2[all.na!=ncol(XX)])
+    totwt_anyv = sum(w.anyv)
+    perc_wt_anyv = round(totwt_anyv/nrow(XX)*100,1)
+    rr_pctwt_anyv = rr_wt_anyv*100/totwt_anyv
+    #All
+    w.allv=wt[all.na!=ncol(XX)]
+    rr_wt_allv = tab.weight(as.factor(rs[all.na!=ncol(XX)]), w.allv)$tab.ext.w
+    rr_ncase_allv=unname(table(rs[all.na!=ncol(XX)]))
+    totwt_allv=sum(rr_wt_allv)
+    rr_pctwt_allv=rr_wt_allv*100/totwt_allv
+    # Missing information
+    nitem = k
+    nvall=nitem+1
+    vall_value=rep(0,nvall) #
+    vall_value = 0:nitem
+    i_max = apply(XX,2,function(x) max(x,na.rm=T))
+    rawmax=sum(i_max)
+    ri_in_all=XX
+    nrawall=rawmax+1 #number of cases including 0
+    rrall_value=0:rawmax 
+    #calculate distribution of missing: 
+    # Distribution of valid responses = da 0 ad 8 quante sono i valori validi
+    tab.not.na = apply(XX, 1, function(i) sum(!is.na(i)))
+    vall_ncaseinv = sapply(0:nitem, function(i) sum(tab.not.na==i)) #number of cases by number of valid items
+    vall_wtcaseinv = sapply(0:nitem, function(i) sum(wt[tab.not.na==i])) #sum of weights of cases by number valid
+    
+    vall_pctncaseinv=vall_ncaseinv*100/ncaseall
+    vall_pctwtcaseinv=vall_wtcaseinv*100/ncaseall #total weight is constrained to ncase
+    
+    ncaseanyv=ncaseall-vall_ncaseinv[1] #subtract cases w zero valid
+    wtcaseanyv=ncaseall-vall_wtcaseinv[1] #subtract wt of cases w zero valid
+    
+    vall_pctncaseinv_anyv=vall_ncaseinv*100/ncaseanyv
+    vall_pctwtcaseinv_anyv=vall_wtcaseinv*100/wtcaseanyv
+    vall_pctncaseinv_anyv[1]=0
+    vall_pctwtcaseinv_anyv[1]=0
+    
+    #calculate item missing if any item valid
+    # Missing by item if any valid: quanti sono i missing per ogni item
+    
+    i_nmiss=rep(0,nitem) #number missing if any valid
+    i_nvalid=rep(0,nitem) #number of cases w valid response to the item
+    i_pctnmiss=rep(0,nitem) #pct missing if any valid
+    i_wtmiss=rep(0,nitem) #wt number missing if any valid
+    i_wtvalid=rep(0,nitem) #wt number w valid resp to the item
+    i_pctwtmiss=rep(0,nitem) #wt pct missing if any valid
+    
+    i_nmiss=colSums(is.na(XX))
+    i_nvalid=ncaseall-i_nmiss
+    i_nmiss=i_nmiss-vall_ncaseinv[1]
   
-  vall_pctncaseinv=vall_ncaseinv*100/ncaseall
-  vall_pctwtcaseinv=vall_wtcaseinv*100/ncaseall #total weight is constrained to ncase
+    for (i in 1:nitem)i_wtmiss[i]=sum((ri_inz_all[,i]==-1)*r_wt_all)
+    i_wtvalid=ncaseall-i_wtmiss
+    i_wtmiss=i_wtmiss-vall_wtcaseinv[1]
+    
+    i_pctnmiss=i_nmiss*100/ncaseanyv
+    i_pctwtmiss=i_wtmiss*100/wtcaseanyv
+    
+    #i_nvalid and i_wtvalid already calculated
+    ic_numcase_all=mat.or.vec(nitem,4) #responses by value index is value+1
+    ic_wtcase_all=mat.or.vec(nitem,4) #wt response by value index is valueC+1
+    ic_pctwt_all=mat.or.vec(nitem,4) #wt pct of valid resp for item
+    c_catval=c(0,1,2,3) #value of category
+    
+    for (r in 1:ncaseall) for (i in 1:nitem) if(!is.na(XX[r,i])){
+      ic_numcase_all[i,(XX[r,i]+1)]=ic_numcase_all[i,(XX[r,i]+1)]+1
+      ic_wtcase_all[i,(XX[r,i]+1)]=ic_wtcase_all[i,(XX[r,i]+1)]+r_wt_all[r]}
+    
+    for (c in 1:4) ic_pctwt_all[,c]=ic_wtcase_all[,c]*100/i_wtvalid
+    
+    ##5 subset to complete nonexreme with weight and recalculate wt
+    ic_numcase_cnext=mat.or.vec(nitem,4) #responses by value index is value+1
+    
+    rdf_cnext=data.frame(ri_inz_all,r_wt_all,r_nvalid,r_raw_all)
+    
+    rdf_cnext=subset(rdf_cnext,(r_nvalid==nitem & r_raw_all>0 & 
+                                  r_raw_all<rawmax & r_wt_all>0))
+    
+    nccnext=nrow(rdf_cnext)
+    
+    #calculate weights at mean 1 for cnext cases
+    r_wt=rep(0,nccnext)
+    totwtcnext=sum(rdf_cnext$r_wt_all)
+    r_wt=rdf_cnext$r_wt_all/totwtcnext*nccnext
+    ri_in=as.matrix(rdf_cnext[,1:nitem])
+    ri_in[is.na(ri_in)]=-1
+    r_raw=as.matrix(rdf_cnext$r_raw_all)
+    # r_raw=rs
+    totwtcnext=nccnext #redefined totwtcnext for later use
+    
+    #calculate cnext cases by item by category
+    
+    for (r in 1:nccnext) for (i in 1:nitem) 
+      ic_numcase_cnext[i,(ri_in[r,i]+1)]=ic_numcase_cnext[i,(ri_in[r,i]+1)]+1
+    
+    ##6 code response into riv matrix with 1 indicating at or above
+    riv_in=rep(0,nccnext*nitem*3)
+    dim(riv_in)=c(nccnext,nitem,3)
+    rriv_wt=rep(0,(rawmax-1)*nitem*3) #sum of wt in or greater than v
+    dim(rriv_wt)=c(rawmax-1,nitem,3)
+    rriv_wtprop=rep(0,(rawmax-1)*nitem*3) #weighted proportion within raw score
+    dim(rriv_wtprop)=c((rawmax-1),nitem,3)
+    iv_wt=mat.or.vec(nitem,3) #control totals for solution
+    rr_wt=rep(0,rawmax-1)
+    rr_ncase=rep(0,rawmax-1)
+    
+    for (r in 1:nccnext) for (i in 1:nitem) for (v in 1:i_max[i])
+      if(ri_in[r,i]>=v) riv_in[r,i,v]=1
+    
+    #accumulate to raw scores and to totals for cnext
+    for (r in 1:nccnext) {rr_wt[r_raw[r]]=rr_wt[r_raw[r]]+r_wt[r];
+                          rr_ncase[r_raw[r]]=rr_ncase[r_raw[r]]+1;
+                          for (i in 1:nitem) for (v in 1:3){
+                            rriv_wt[r_raw[r],i,v]=rriv_wt[r_raw[r],i,v]+r_wt[r]*riv_in[r,i,v];
+                            iv_wt[i,v]=iv_wt[i,v]+r_wt[r]*riv_in[r,i,v]}}
   
-  ncaseanyv=ncaseall-vall_ncaseinv[1] #subtract cases w zero valid
-  wtcaseanyv=ncaseall-vall_wtcaseinv[1] #subtract wt of cases w zero valid
-  
-  vall_pctncaseinv_anyv=vall_ncaseinv*100/ncaseanyv
-  vall_pctwtcaseinv_anyv=vall_wtcaseinv*100/wtcaseanyv
-  vall_pctncaseinv_anyv[1]=0
-  vall_pctwtcaseinv_anyv[1]=0
-  
-  #calculate item missing if any item valid
-  # Missing by item if any valid: quanti sono i missing per ogni item
-  
-  i_nmiss=rep(0,nitem) #number missing if any valid
-  i_nvalid=rep(0,nitem) #number of cases w valid response to the item
-  i_pctnmiss=rep(0,nitem) #pct missing if any valid
-  i_wtmiss=rep(0,nitem) #wt number missing if any valid
-  i_wtvalid=rep(0,nitem) #wt number w valid resp to the item
-  i_pctwtmiss=rep(0,nitem) #wt pct missing if any valid
-  
-  i_nmiss=colSums(is.na(XX))
-  i_nvalid=ncaseall-i_nmiss
-  i_nmiss=i_nmiss-vall_ncaseinv[1]
-
-  for (i in 1:nitem)i_wtmiss[i]=sum((ri_inz_all[,i]==-1)*r_wt_all)
-  i_wtvalid=ncaseall-i_wtmiss
-  i_wtmiss=i_wtmiss-vall_wtcaseinv[1]
-  
-  i_pctnmiss=i_nmiss*100/ncaseanyv
-  i_pctwtmiss=i_wtmiss*100/wtcaseanyv
-  
-  #i_nvalid and i_wtvalid already calculated
-  ic_numcase_all=mat.or.vec(nitem,4) #responses by value index is value+1
-  ic_wtcase_all=mat.or.vec(nitem,4) #wt response by value index is valueC+1
-  ic_pctwt_all=mat.or.vec(nitem,4) #wt pct of valid resp for item
-  c_catval=c(0,1,2,3) #value of category
-  
-  for (r in 1:ncaseall) for (i in 1:nitem) if(!is.na(XX[r,i])){
-    ic_numcase_all[i,(XX[r,i]+1)]=ic_numcase_all[i,(XX[r,i]+1)]+1
-    ic_wtcase_all[i,(XX[r,i]+1)]=ic_wtcase_all[i,(XX[r,i]+1)]+r_wt_all[r]}
-  
-  for (c in 1:4) ic_pctwt_all[,c]=ic_wtcase_all[,c]*100/i_wtvalid
-  
-  ##5 subset to complete nonexreme with weight and recalculate wt
-  ic_numcase_cnext=mat.or.vec(nitem,4) #responses by value index is value+1
-  
-  rdf_cnext=data.frame(ri_inz_all,r_wt_all,r_nvalid,r_raw_all)
-  
-  rdf_cnext=subset(rdf_cnext,(r_nvalid==nitem & r_raw_all>0 & 
-                                r_raw_all<rawmax & r_wt_all>0))
-  
-  nccnext=nrow(rdf_cnext)
-  
-  #calculate weights at mean 1 for cnext cases
-  r_wt=rep(0,nccnext)
-  totwtcnext=sum(rdf_cnext$r_wt_all)
-  r_wt=rdf_cnext$r_wt_all/totwtcnext*nccnext
-  ri_in=as.matrix(rdf_cnext[,1:nitem])
-  ri_in[is.na(ri_in)]=-1
-  r_raw=as.matrix(rdf_cnext$r_raw_all)
-  # r_raw=rs
-  totwtcnext=nccnext #redefined totwtcnext for later use
-  
-  #calculate cnext cases by item by category
-  
-  for (r in 1:nccnext) for (i in 1:nitem) 
-    ic_numcase_cnext[i,(ri_in[r,i]+1)]=ic_numcase_cnext[i,(ri_in[r,i]+1)]+1
-  
-  ##6 code response into riv matrix with 1 indicating at or above
-  riv_in=rep(0,nccnext*nitem*3)
-  dim(riv_in)=c(nccnext,nitem,3)
-  rriv_wt=rep(0,(rawmax-1)*nitem*3) #sum of wt in or greater than v
-  dim(rriv_wt)=c(rawmax-1,nitem,3)
-  rriv_wtprop=rep(0,(rawmax-1)*nitem*3) #weighted proportion within raw score
-  dim(rriv_wtprop)=c((rawmax-1),nitem,3)
-  iv_wt=mat.or.vec(nitem,3) #control totals for solution
-  rr_wt=rep(0,rawmax-1)
-  rr_ncase=rep(0,rawmax-1)
-  
-  for (r in 1:nccnext) for (i in 1:nitem) for (v in 1:i_max[i])
-    if(ri_in[r,i]>=v) riv_in[r,i,v]=1
-  
-  #accumulate to raw scores and to totals for cnext
-  for (r in 1:nccnext) {rr_wt[r_raw[r]]=rr_wt[r_raw[r]]+r_wt[r];
-                        rr_ncase[r_raw[r]]=rr_ncase[r_raw[r]]+1;
-                        for (i in 1:nitem) for (v in 1:3){
-                          rriv_wt[r_raw[r],i,v]=rriv_wt[r_raw[r],i,v]+r_wt[r]*riv_in[r,i,v];
-                          iv_wt[i,v]=iv_wt[i,v]+r_wt[r]*riv_in[r,i,v]}}
-  
-  #calculate wt ge v as proportion of rr_wt
-  rriv_wtprop=rriv_wt/rr_wt #missing if zero rr_wt but no problem
-
+    #calculate wt ge v as proportion of rr_wt
+    rriv_wtprop=rriv_wt/rr_wt #missing if zero rr_wt but no problem
+}
   # Save output
   if(write.file){
     print.title = paste(country, "input data from R datafile")
@@ -727,11 +735,7 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
                       "Severity" = b.w, "SE severity" = se.b.w,
                        "Infit" = infit.w, "SE infit" = i_seinfit,
                       "Outfit" = outfit.w, 
-                      "N Yes on complete non-extreme sample" = n.yes, "Perc Yes on complete non-extreme sample"= perc.yes,
-                      "WN Yes on complete non-extreme sample" = wt.yes, "WPerc Yes on complete non-extreme sample"= wt.yes.perc,
-                      "N Yes on total sample" = n.yes.tot, "Perc Yes on total sample"= perc.yes.tot,
-                      "WN Yes on total sample" = wt.yes.tot, "WPerc Yes on total sample"= wt.yes.perc.tot)
-#                       "N missing" = miss.item, "W missing" = miss.item.w)
+                      "N Yes on complete non-extreme sample" = n.yes, "Perc Yes on complete non-extreme sample"= perc.yes)
     suppressWarnings(
       write.table(item.data, paste("Output", country,".csv", sep=""), append = T, 
                 sep = ",", eol = "\n", na = "NA", dec = ".", row.names = F)
@@ -739,7 +743,7 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
     cat("\n", file = paste("Output", country,".csv", sep=""), append = TRUE)
     if(l.d == 2){
       rs.data = cbind("Raw-score" = 0:k, "Severity" = a.w, "Error" = se.a.w,
-                      "N cases" = n.rv.tot, "W cases" = wt.rv.tot)
+                      "N cases" = n.rv.tot, "W cases" = wt.rv.tot, "W cases relative" = wt.rv.tot/sum(wt.rv.tot))
     }
     if(l.d == 3 & d[2]<1){
       rs.data = cbind("Raw-score" = c(c("0_1","0_2"),1:k), "Severity" = a.w, "Error" = se.a.w,
@@ -836,12 +840,11 @@ function(.data, .w = NULL, .d=NULL, country=NULL, se.control = T,
 	return(list(country = country,
               b = b.w, a = a.w, se.b = se.b.w, se.a = se.a.w, infit = infit.w, 
               outfit = outfit.w, reliab = reliab, reliab.fl = reliab.fl, 
-              infit.person = infit.person, infit.person.theor=infit.person.theor,
-	            outfit.person = outfit.person,
-	            outfit.person.theor = outfit.person.theor,
-	            q.infit.theor = q.infit.theor, q.infit = q.infit,
+              infit.person = infit.person2, 
+	            outfit.person = outfit.person2,
+              q.infit.theor = q.infit.theor, q.infit = q.infit,
 	            q.outfit.theor = q.outfit.theor, q.outfit = q.outfit,
               res.corr = ii_residcorr, se.infit = i_seinfit, mat.res = mat.res,
               d = d, XX=XX, wt = wt, n.compl = valid.resp,
-              wt.rs=wt.rv.tot) )
+              wt.rs=wt.rv.tot, wt.rel.rs= f_j, converged=convergence) )
 }

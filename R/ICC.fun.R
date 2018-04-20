@@ -1,5 +1,5 @@
 ICC.fun <-
-function(b, plot = F){
+function(b, plot = FALSE){
   P.i <- function(x, .beta = 1){
     teil2a <- x - .beta 
     teil2 <- (1+exp(teil2a))

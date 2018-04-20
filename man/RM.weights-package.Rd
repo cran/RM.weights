@@ -12,9 +12,9 @@ This package computes parameter estimates and assessment statistics of a single-
 \tabular{ll}{
 Package: \tab RM.weights \cr
 Type: \tab Package \cr
-Version: \tab 1.0 \cr
-Date: \tab 2014-11-05 \cr
-License: \tab  GPL (>= 2) \cr
+Version: \tab 2.0 \cr
+Date: \tab 2017-11-14 \cr
+License: \tab  GPL (>= 3) \cr
 }
 
 }
